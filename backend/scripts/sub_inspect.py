@@ -12,6 +12,7 @@ async def run():
         n += 1
         if n > 10:
             break
-
+    await sub.close()
+    
 if __name__ == '__main__':
     asyncio.run(run())

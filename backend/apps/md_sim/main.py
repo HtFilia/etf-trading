@@ -1,4 +1,5 @@
-import asyncio, time
+import asyncio
+from datetime import datetime, timezone
 import random
 from backend.core.zmq_bus import PubSocket
 from backend.core.universe import load_universe
@@ -23,14 +24,17 @@ def _simulate_tick(sec: Security) -> PriceTick:
 async def run():
     pub = await PubSocket.bind(PUB_ADDR)
     universe = load_universe()
-    while True:
-        now = time.time()
-        for sec in universe.securities:
-            exchange = universe.exchanges[sec.exchange_id]
-            if is_open(exchange, now):
-                tick = _simulate_tick(sec)
-                await pub.send('prices.tick', tick, version=1)
-        await asyncio.sleep(1.0)
+    try:
+        while True:
+            now = datetime.now(timezone.utc)
+            for sec in universe.securities:
+                exchange = universe.exchanges[sec.exchange_id]
+                if is_open(exchange, now):
+                    tick = _simulate_tick(sec)
+                    await pub.send('prices.tick', tick, version=1)
+            await asyncio.sleep(1.0)
+    finally:
+        await pub.close()
 
 if __name__ == '__main__':
     asyncio.run(run())
