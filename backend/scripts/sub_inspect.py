@@ -1,10 +1,11 @@
 import asyncio
 from backend.core.zmq_bus import SubSocket
+from backend.core.config import get_config
 
-SUB_ADDR = 'ipc:///tmp/etf-trading/md_pub.sock'
+CFG = get_config()
 
 async def run():
-    sub = await SubSocket.connect(SUB_ADDR, topics=['prices.'])
+    sub = await SubSocket.connect(CFG.md_pub_ipc, topics=['prices.'])
     n = 0
     async for msg in sub:
         payload = msg['payload']

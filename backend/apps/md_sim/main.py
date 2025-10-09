@@ -1,22 +1,22 @@
+from __future__ import annotations
 import asyncio
-import os
 from typing import Optional
 from datetime import datetime, timezone
 import random
+from backend.core.config import get_config
 from backend.core.zmq_bus import PubSocket, shutdown_sockets
 from backend.core.universe import load_universe
 from backend.core.timecal import is_open
 from backend.core.schemas import Security, PriceTick
 from backend.core.utils.services import run_service
 
-PUB_ADDR = 'ipc:///tmp/etf-trading/md_pub.sock'
-TICK_INTERVAL = float(os.environ.get('TICK_INTERVAL_MS', '1000.0')) / 1000
+CFG = get_config()
 
 _pub: Optional[PubSocket] = None
 
 async def init() -> None:
     global _pub
-    _pub = await PubSocket.bind(PUB_ADDR)
+    _pub = await PubSocket.bind(CFG.md_pub_ipc)
 
 def _simulate_tick(sec: Security) -> PriceTick:
     mid = 100.0 + random.uniform(-10, 10)
@@ -40,7 +40,7 @@ async def producer() -> None:
             if is_open(exchange, now):
                 tick = _simulate_tick(sec)
                 await _pub.send('prices.tick', tick, version=1)
-        await asyncio.sleep(TICK_INTERVAL)          
+        await asyncio.sleep(CFG.tick_interval)          
 
 async def shutdown() -> None:
     await shutdown_sockets(_pub)
