@@ -1,15 +1,17 @@
 import asyncio
 from backend.core.zmq_bus import SubSocket
 from backend.core.config import get_config
+from backend.core.logging import get_logger, init_logging
 
 CFG = get_config()
+init_logging(__name__)
+log = get_logger(__name__)
 
 async def run():
     sub = await SubSocket.connect(CFG.md_pub_ipc, topics=['prices.'])
     n = 0
     async for msg in sub:
-        payload = msg['payload']
-        print(f"[{msg['type']}] ts={msg['ts']} sec={payload['security_id']} mid={payload['mid']}")
+        log.info(msg)
         n += 1
         if n > 10:
             break

@@ -24,18 +24,31 @@ def _ensure_ipc(addr: Optional[str], default_name: str) -> str:
 
 @dataclass(frozen=True)
 class AppConfig:
+    # General
     env_loaded: bool
     dev_mode: bool
     tick_interval_ms: float
     
+    # ZMQ & IPC
     zmq_dir: str
     md_pub_addr: str
     pcf_reqrep_addr: str
     pricing_pub_addr: str
     calc_reqrep_addr: str
     
+    # WS gateway
     ws_host: str
     ws_port: int
+    
+    # Logging
+    log_level: str
+    log_format: str
+    log_color: bool
+    log_timezone_utc: bool
+    log_file: Optional[str]
+    log_file_max_bytes: int
+    log_file_backup: int
+    log_include_pid: bool
     
     @property
     def tick_interval(self) -> float:
@@ -75,14 +88,29 @@ def get_config() -> AppConfig:
             return default
     
     return AppConfig(
+        # General
         env_loaded=_ENV_LOADED,
         dev_mode=as_bool(os.environ.get('DEV_MODE'), True),
         tick_interval_ms=as_float(os.environ.get('TICK_INTERVAL_MS'), 1000.0),
+        
+        # ZMQ & IPC
         zmq_dir=os.environ.get('ZMQ_DIR', '/tmp/etf-trading'),
         md_pub_addr=os.environ.get('MD_PUB_ADDR', ''),
         pcf_reqrep_addr=os.environ.get('PCF_REQREP_ADDR', ''),
         pricing_pub_addr=os.environ.get('PRICING_PUB_ADDR', ''),
         calc_reqrep_addr=os.environ.get('CALC_REQREP_ADDR', ''),
+        
+        # WS gateway
         ws_host=os.environ.get('WS_HOST', 'localhost'),
         ws_port=as_int(os.environ.get('WS_PORT'), 9080),
+        
+        # Logging
+        log_level=os.environ.get('LOG_LEVEL', 'INFO'),
+        log_format=os.environ.get('LOG_FORMAT', 'json'),
+        log_color=as_bool(os.environ.get('LOG_COLOR'), True),
+        log_timezone_utc=os.environ.get('LOG_TIMEZONE', 'UTC').upper() == 'UTC',
+        log_file=os.environ.get('LOG_FILE'),
+        log_file_max_bytes=as_int(os.environ.get('LOG_FILE_MAX_BYTES'), 10 * 1024 * 1024),
+        log_file_backup=as_int(os.environ.get('LOG_FILE_BACKUP'), 5),
+        log_include_pid=as_bool(os.environ.get('LOG_INCLUDE_PID'), True),
     )

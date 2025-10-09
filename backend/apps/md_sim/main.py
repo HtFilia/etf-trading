@@ -9,15 +9,17 @@ from backend.core.universe import load_universe
 from backend.core.timecal import is_open
 from backend.core.schemas import Security, PriceTick
 from backend.core.utils.services import run_service
+from backend.core.logging import get_logger
 
 CFG = get_config()
-
+log = get_logger(__name__)
 _pub: Optional[PubSocket] = None
 
 async def init() -> None:
     global _pub
     _pub = await PubSocket.bind(CFG.md_pub_ipc)
-
+    log.info('md_sim bound', extra={'event': 'bind', 'endpoint': CFG.md_pub_ipc})
+    
 def _simulate_tick(sec: Security) -> PriceTick:
     mid = 100.0 + random.uniform(-10, 10)
     spread = random.uniform(0, 3)
@@ -44,6 +46,7 @@ async def producer() -> None:
 
 async def shutdown() -> None:
     await shutdown_sockets(_pub)
+    log.info('md_sim shutdown complete')
 
 async def run():
     await run_service(

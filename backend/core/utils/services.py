@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Awaitable, Callable, Iterable, Optional
 from backend.core.utils.signals import install_sig_handlers, graceful_shutdown
-
-logger = logging.getLogger(__name__)
+from backend.core.logging import init_logging, get_logger
 
 AsyncFn = Callable[[], Awaitable[None]]
 AsyncInitFn = Callable[[], Awaitable[None]]
@@ -18,11 +16,8 @@ async def run_service(
     background: Optional[Iterable[AsyncFn]] = None,
     on_shutdown: Optional[Iterable[AsyncFn]] = None,
 ) -> None:
-    if not logging.getLogger().handlers:
-        logging.basicConfig(
-            level=logging.INFO,
-            format=f'%(asctime)s | {name} | %(levelname)s | %(message)s'
-        )
+    init_logging(name)
+    logger = get_logger(name)
     
     stop = asyncio.Event()
     install_sig_handlers(stop)
