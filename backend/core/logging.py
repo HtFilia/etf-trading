@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from logging import Handler, LogRecord, Formatter
 from logging.handlers import RotatingFileHandler
@@ -14,6 +13,8 @@ from backend.core.config import get_config
 
 _request_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('request_id', default=None)
 _session_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('session_id', default=None)
+_service_name_for_records: Optional[str] = None
+_original_factory = logging.getLogRecordFactory()
 
 def set_request_id(value: Optional[str] = None) -> str:
     rid = value or uuid.uuid4().hex
@@ -30,6 +31,12 @@ def set_session_id(value: Optional[str] = None) -> str:
 
 def get_session_id() -> Optional[str]:
     return _session_id.get()
+
+def _service_record_factory(*args, **kwargs):
+    record = _original_factory(*args, **kwargs)
+    if _service_name_for_records and record.name == '__main__':
+        record.name = _service_name_for_records
+    return record
 
 class JsonFormatter(Formatter):
     def __init__(self, service: str):
@@ -124,18 +131,19 @@ def _make_file_handler(service: str) -> Optional[Handler]:
 _initialized = False
 
 def init_logging(service: str) -> None:
-    global _initialized
+    global _initialized, _service_name_for_records
     if _initialized:
         return
     cfg = get_config()
     
+    _service_name_for_records = service
+    logging.setLogRecordFactory(_service_record_factory)
+    
     root = logging.getLogger()
     root.setLevel(getattr(logging, cfg.log_level.upper(), logging.INFO))
     root.handlers.clear()
-    
     stream_h = _make_stream_handler(service)
     root.addHandler(stream_h)
-    
     file_h = _make_file_handler(service)
     if file_h:
         root.addHandler(file_h)
@@ -147,9 +155,6 @@ def init_logging(service: str) -> None:
     _initialized = True
 
 def get_logger(name: str) -> logging.Logger:
-    global _initialized
-    if not _initialized:
-        init_logging(name) 
     return logging.getLogger(name)
 
 def integrate_uvicorn(name: str) -> None:
