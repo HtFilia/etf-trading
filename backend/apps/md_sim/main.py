@@ -15,22 +15,25 @@ CFG = get_config()
 log = get_logger(__name__)
 _pub: Optional[PubSocket] = None
 
+
 async def init() -> None:
     global _pub
     _pub = await PubSocket.bind(CFG.md_pub_ipc)
     log.info('md_sim bound', extra={'event': 'bind', 'endpoint': CFG.md_pub_ipc})
-    
+
+
 def _simulate_tick(sec: Security) -> PriceTick:
     mid = 100.0 + random.uniform(-10, 10)
     spread = random.uniform(0, 3)
     return PriceTick(
         security_id=sec.id,
-        bid=round(mid-spread, 4),
-        ask=round(mid+spread, 4),
+        bid=round(mid - spread, 4),
+        ask=round(mid + spread, 4),
         mid=round(mid, 4),
         last=round(mid, 4),
         source='sim',
     )
+
 
 async def producer() -> None:
     assert _pub is not None
@@ -42,11 +45,13 @@ async def producer() -> None:
             if is_open(exchange, now):
                 tick = _simulate_tick(sec)
                 await _pub.send('prices.tick', tick, version=1)
-        await asyncio.sleep(CFG.tick_interval)          
+        await asyncio.sleep(CFG.tick_interval)
+
 
 async def shutdown() -> None:
     await shutdown_sockets(_pub)
     log.info('md_sim shutdown complete')
+
 
 async def run():
     await run_service(
@@ -55,6 +60,7 @@ async def run():
         main=producer,
         on_shutdown=[shutdown],
     )
+
 
 if __name__ == '__main__':
     asyncio.run(run())

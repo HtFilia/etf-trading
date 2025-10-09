@@ -14,18 +14,23 @@ _pub: Optional[PubSocket] = None
 _pcf: Optional[ReqSocket] = None
 
 _state: Dict[str, Any] = {
-    'ticks': {}, # security_id -> last price tick
-    'fx_spot': {}, # pair -> spot
-    'fx_fwd': {}, # pair -> points curve    
+    'ticks': {},  # security_id -> last price tick
+    'fx_spot': {},  # pair -> spot
+    'fx_fwd': {},  # pair -> points curve
 }
+
 
 async def init() -> None:
     global _sub, _pub, _pcf
     _sub = await SubSocket.connect(CFG.md_pub_ipc, topics=['prices.', 'fx.'])
     _pub = await PubSocket.bind(CFG.pricing_pub_ipc)
     _pcf = await ReqSocket.connect(CFG.pcf_reqrep_ipc)
-    log.info('pricing connected', extra={'md_sub': CFG.md_pub_ipc, 'pricing_pub': CFG.pricing_pub_ipc, 'pcf_reqrep': CFG.pcf_reqrep_ipc})
-    
+    log.info(
+        'pricing connected',
+        extra={'md_sub': CFG.md_pub_ipc, 'pricing_pub': CFG.pricing_pub_ipc, 'pcf_reqrep': CFG.pcf_reqrep_ipc},
+    )
+
+
 async def consume_bus() -> None:
     assert _sub is not None
     async for msg in _sub:
@@ -38,6 +43,7 @@ async def consume_bus() -> None:
         elif t == 'fx.forwards':
             _state['fx_fwd'][p['pair']] = p['points']
 
+
 async def publish_inav() -> None:
     assert _pub is not None
     sc_id = 'SC_SIM'
@@ -47,9 +53,11 @@ async def publish_inav() -> None:
         await _pub.send('inav.tick', {'share_class_id': sc_id, 'inav': inav, 'band_low': low, 'band_high': high})
         await asyncio.sleep(CFG.tick_interval)
 
+
 async def shutdown() -> None:
     await shutdown_sockets(_sub, _pub, _pcf)
     log.info('pricing shutdown complete')
+
 
 async def run():
     await run_service(
@@ -59,6 +67,7 @@ async def run():
         background=[consume_bus],
         on_shutdown=[shutdown],
     )
+
 
 if __name__ == '__main__':
     asyncio.run(run())

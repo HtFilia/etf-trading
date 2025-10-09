@@ -7,10 +7,12 @@ CFG = get_config()
 init_logging(__name__)
 log = get_logger(__name__)
 
+
 async def main():
     req = await ReqSocket.connect(CFG.pcf_reqrep_ipc)
     resp = await req.send_and_recv({'hello': 'world'})
     log.info('client got %s', resp)
+
 
 if __name__ == '__main__':
     asyncio.run(main())

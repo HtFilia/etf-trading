@@ -31,10 +31,12 @@ _state: Dict[str, Dict[str, Any]] = {
     },
 }
 
+
 async def init() -> None:
     global _rep
     _rep = await RepSocket.bind(CFG.pcf_reqrep_ipc)
     log.info('pcf_sim bound', extra={'endpoint': CFG.pcf_reqrep_ipc})
+
 
 async def server() -> None:
     assert _rep is not None
@@ -65,9 +67,11 @@ async def server() -> None:
             log.exception('pcf_sim error %s', e)
             await _rep.send({'ok': False, 'err': str(e)})
 
+
 async def shutdown() -> None:
     await shutdown_sockets(_rep)
     log.info('pcf_sim shutdown complete')
+
 
 async def run():
     await run_service(
@@ -76,6 +80,7 @@ async def run():
         main=server,
         on_shutdown=[shutdown],
     )
+
 
 if __name__ == '__main__':
     asyncio.run(run())

@@ -7,6 +7,7 @@ CFG = get_config()
 init_logging(__name__)
 log = get_logger(__name__)
 
+
 async def run():
     sub = await SubSocket.connect(CFG.md_pub_ipc, topics=['prices.'])
     n = 0
@@ -16,6 +17,7 @@ async def run():
         if n > 10:
             break
     await sub.close()
-    
+
+
 if __name__ == '__main__':
     asyncio.run(run())

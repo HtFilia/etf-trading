@@ -8,6 +8,7 @@ from backend.core.logging import init_logging, get_logger
 AsyncFn = Callable[[], Awaitable[None]]
 AsyncInitFn = Callable[[], Awaitable[None]]
 
+
 async def run_service(
     *,
     name: str,
@@ -18,23 +19,23 @@ async def run_service(
 ) -> None:
     init_logging(name)
     logger = get_logger(name)
-    
+
     stop = asyncio.Event()
     install_sig_handlers(stop)
-    
+
     if init:
         logger.info('Initializing %s ...', name)
         await init()
         logger.info('Initialization complete')
-    
+
     tasks = []
     tasks.append(asyncio.create_task(main(), name=f'{name}:main'))
     if background:
         for fn in background:
             tasks.append(asyncio.create_task(fn(), name=f'{name}:bg'))
-    
+
     logger.info('%s started (%d task(s))', name, len(tasks))
-    
+
     try:
         async with graceful_shutdown(*tasks):
             await stop.wait()

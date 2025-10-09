@@ -5,6 +5,7 @@ from backend.core.logging import get_logger
 
 log = get_logger(__name__)
 
+
 async def main():
     uri = 'ws://localhost:9080/stream'
     async with websockets.connect(uri, max_size=None) as ws:
@@ -22,6 +23,7 @@ async def main():
             else:
                 log.info('other type: %s', t)
         log.info('done')
+
 
 if __name__ == '__main__':
     asyncio.run(main())

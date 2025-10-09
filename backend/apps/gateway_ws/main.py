@@ -12,6 +12,7 @@ CFG = get_config()
 log = get_logger(__name__)
 app = Starlette()
 
+
 @app.websocket_route('/stream')
 async def stream(ws: WebSocket):
     await ws.accept()
@@ -21,14 +22,14 @@ async def stream(ws: WebSocket):
     ]
     calc = await ReqSocket.connect(CFG.calc_reqrep_ipc) if CFG.calc_reqrep_ipc else None
     log.info('WS client connected')
-    
+
     async def forward(sub: SubSocket):
         try:
             async for msg in sub:
                 await ws.send_json(msg)
         except (WebSocketDisconnect, RuntimeError):
             return
-        
+
     async def rpc_loop():
         if not calc:
             try:
@@ -48,7 +49,7 @@ async def stream(ws: WebSocket):
                             return
             except WebSocketDisconnect:
                 return
-    
+
     tasks = [asyncio.create_task(forward(s)) for s in subs]
     tasks.append(asyncio.create_task(rpc_loop()))
     try:
@@ -67,9 +68,11 @@ async def stream(ws: WebSocket):
             pass
         log.info('WS client disconnected')
 
+
 async def init():
     integrate_uvicorn(__name__)
     log.info('gateway initialized', extra={'event': 'init', 'ws_port': CFG.ws_port})
+
 
 async def uvicorn_main():
     config = uvicorn.Config(
@@ -80,9 +83,9 @@ async def uvicorn_main():
         lifespan='off',
     )
     server = uvicorn.Server(config)
-    
+
     task = asyncio.create_task(server.serve(), name='gateway_ws:uvicorn')
-    
+
     try:
         while not task.done():
             await asyncio.sleep(3600)
@@ -94,8 +97,10 @@ async def uvicorn_main():
             pass
         return
 
+
 async def run():
     await run_service(name='gateway_ws', init=init, main=uvicorn_main)
+
 
 if __name__ == '__main__':
     asyncio.run(run())
