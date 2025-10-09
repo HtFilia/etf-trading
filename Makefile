@@ -19,7 +19,7 @@ help:
 	@echo "Usage:"
 	@echo "  make env-init             # create .env from .env.example if missing"
 	@echo "  make venv                 # create/upgrade virtualenv"
-	@echo "  make install              # venv + runtime deps + dev deps"
+	@echo "  make install              # env-init + venv"
 	@echo "  make shell-venv           # open an interactive shell with venv activated"
 	@echo "  make fmt lint typecheck   # code quality"
 	@echo "  make test|test-unit|test-nr"
@@ -37,17 +37,10 @@ env-init:
 venv:
 	@test -d $(VENV) || (cd backend && python3 -m venv .venv)
 	@$(PIP) -q install -U pip
-
-.PHONY: deps-runtime
-deps-runtime: venv
-	@$(PIP) -q install pyzmq msgpack pydantic uvicorn starlette python-dotenv websockets
-
-.PHONY: deps-dev
-deps-dev: venv
-	@$(PIP) -q install pytest pytest-asyncio pytest-xdist ruff black mypy types-requests
+	@$(PIP) -q install -r requirements.txt
 
 .PHONY: install
-install: env-init deps-runtime deps-dev
+install: env-init venv
 	@echo "✅ Environment ready"
 
 # ====== dev shell ======
@@ -58,7 +51,7 @@ shell-venv: venv
 # ====== quality ======
 .PHONY: fmt
 fmt:
-	@$(VENV)/bin/black backend
+	@$(VENV)/bin/black -S -l 120 backend
 
 .PHONY: lint
 lint:

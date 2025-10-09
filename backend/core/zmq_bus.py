@@ -7,7 +7,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Iterable, Optional, Mapping, Sequence
+from typing import Any, AsyncIterator, Dict, Iterable, Optional, Mapping
 
 import zmq
 import zmq.asyncio
