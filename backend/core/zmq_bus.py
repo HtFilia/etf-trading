@@ -217,6 +217,12 @@ class RepSocket:
             buf = await self._sock.recv()
         return _unpack(buf)
     
+    async def send(self, payload: Dict[str, Any], *, timeout: Optional[float] = None) -> None:
+        if timeout:
+            await asyncio.wait_for(self._sock.send(_pack(payload)), timeout=timeout)
+        else:
+            await self._sock.send(_pack(payload))
+    
     async def close(self) -> None:
         try:
             self._sock.close(0)

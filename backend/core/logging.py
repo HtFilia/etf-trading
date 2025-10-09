@@ -142,8 +142,27 @@ def init_logging(service: str) -> None:
     
     logging.getLogger('asyncio').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('websockets').setLevel(logging.WARNING)
     
     _initialized = True
 
 def get_logger(name: str) -> logging.Logger:
+    global _initialized
+    if not _initialized:
+        init_logging(name) 
     return logging.getLogger(name)
+
+def integrate_uvicorn(name: str) -> None:
+    cfg = get_config()
+    handler = _make_stream_handler(name)
+    file_handler = _make_file_handler(name)
+    for lname in ('uvicorn', 'uvicorn.error', 'uvicorn.access', 'starlette'):
+        lg = logging.getLogger(lname)
+        lg.handlers.clear()
+        lg.propagate = True
+        lg.setLevel(getattr(logging, cfg.log_level.upper(), logging.INFO))
+        if lname == 'uvicorn.access':
+            lg.setLevel(logging.INFO)
+        lg.addHandler(handler)
+        if file_handler:
+            lg.addHandler(file_handler)
