@@ -17,16 +17,17 @@ SESSION := amm
 .PHONY: help
 help:
 	@echo "Usage:"
-	@echo "  make env-init             # create .env from .env.example if missing"
-	@echo "  make venv                 # create/upgrade virtualenv"
-	@echo "  make install              # env-init + venv"
-	@echo "  make shell-venv           # open an interactive shell with venv activated"
-	@echo "  make fmt lint typecheck   # code quality"
-	@echo "  make test|test-unit|test-nr"
-	@echo "  make up|down              # start/stop ALL services in tmux (venv activated)"
-	@echo "  make prod-up              # start ALL services with prod-ish flags"
-	@echo "  make run-pcf|run-md|run-fx|run-pricing|run-ws  # single service (venv activated)"
-	@echo "  make clean clean-sockets sockets"
+	@echo "  make env-init             					# create .env from .env.example if missing"
+	@echo "  make venv                 					# create/upgrade virtualenv"
+	@echo "  make install              					# env-init + venv"
+	@echo "  make shell-venv           					# open an interactive shell with venv activated"
+	@echo "  make fmt lint typecheck   					# code quality"
+	@echo "  make test|test-unit|test-nr				# tests"
+	@echo "  make up|down              					# start/stop ALL services in tmux (venv activated)"
+	@echo "  make prod-up              					# start ALL services with prod flags"
+	@echo "  make sim-pcf|sim-md|sim-fx|sim-pricing|ws  # start single service (venv activated)"
+	@echo "  make clean clean-sockets					# clean everything"
+	@echo "  make sockets								# status of sockets"
 
 # ====== bootstrap ======
 .PHONY: env-init
@@ -75,25 +76,25 @@ test-nr:
 	@PYTHONPATH=. $(VENV)/bin/pytest -q -m "nr"
 
 # ====== single service (foreground) — venv ACTIVATED ======
-.PHONY: run-pcf
-run-pcf: venv
-	@bash -lc '$(ACT) && PYTHONPATH=. python backend/apps/pcf_sim/main.py'
+.PHONY: sim-pcf
+sim-pcf: venv
+	@bash -lc '$(ACT) && python backend/apps/simulation/pcf.py'
 
-.PHONY: run-md
-run-md: venv
-	@bash -lc '$(ACT) && PYTHONPATH=. python backend/apps/md_sim/main.py'
+.PHONY: sim-md
+sim-md: venv
+	@bash -lc '$(ACT) && python backend/apps/simulation/market_data.py'
 
-.PHONY: run-fx
-run-fx: venv
-	@bash -lc '$(ACT) && PYTHONPATH=. python backend/apps/fx_sim/main.py'
+.PHONY: sim-fx
+sim-fx: venv
+	@bash -lc '$(ACT) && python backend/apps/simulation/fx.py'
 
-.PHONY: run-pricing
-run-pricing: venv
-	@bash -lc '$(ACT) && PYTHONPATH=. python backend/apps/pricing/main.py'
+.PHONY: sim-pricing
+sim-pricing: venv
+	@bash -lc '$(ACT) && python backend/apps/simulation/pricing.py'
 
-.PHONY: run-ws
-run-ws: venv
-	@bash -lc '$(ACT) && PYTHONPATH=. python backend/apps/gateway_ws/main.py'
+.PHONY: ws
+ws: venv
+	@bash -lc '$(ACT) && python backend/apps/gateway_ws/main.py'
 
 # ====== tmux orchestration (venv ACTIVATED in each pane) ======
 .PHONY: up
@@ -111,16 +112,16 @@ up: install
 	@tmux split-window  -v -t $(SESSION):1.4
 	# 3) arrange tiles and title each pane
 	@tmux select-layout -t $(SESSION):1 tiled
-	@tmux select-pane   -t $(SESSION):1.1 \; select-pane -T "pcf_sim"
-	@tmux select-pane   -t $(SESSION):1.2 \; select-pane -T "md_sim"
-	@tmux select-pane   -t $(SESSION):1.3 \; select-pane -T "fx_sim"
+	@tmux select-pane   -t $(SESSION):1.1 \; select-pane -T "pcf"
+	@tmux select-pane   -t $(SESSION):1.2 \; select-pane -T "md"
+	@tmux select-pane   -t $(SESSION):1.3 \; select-pane -T "fx"
 	@tmux select-pane   -t $(SESSION):1.4 \; select-pane -T "pricing"
 	@tmux select-pane   -t $(SESSION):1.5 \; select-pane -T "gateway_ws"
 	# 4) run commands in each pane (venv ACTIVATED)
-	@tmux send-keys -t $(SESSION):1.1 "bash -lc '$(ACT) && python backend/apps/pcf_sim/main.py'" C-m
-	@tmux send-keys -t $(SESSION):1.2 "bash -lc '$(ACT) && python backend/apps/md_sim/main.py'"   C-m
-	@tmux send-keys -t $(SESSION):1.3 "bash -lc '$(ACT) && python backend/apps/fx_sim/main.py'"   C-m
-	@tmux send-keys -t $(SESSION):1.4 "bash -lc '$(ACT) && python backend/apps/pricing/main.py'"  C-m
+	@tmux send-keys -t $(SESSION):1.1 "bash -lc '$(ACT) && python backend/apps/simulation/pcf.py'" C-m
+	@tmux send-keys -t $(SESSION):1.2 "bash -lc '$(ACT) && python backend/apps/simulation/market_data.py'"   C-m
+	@tmux send-keys -t $(SESSION):1.3 "bash -lc '$(ACT) && python backend/apps/simulation/fx.py'"   C-m
+	@tmux send-keys -t $(SESSION):1.4 "bash -lc '$(ACT) && python backend/apps/simulation/pricing.py'"  C-m
 	@tmux send-keys -t $(SESSION):1.5 "bash -lc '$(ACT) && python backend/apps/gateway_ws/main.py'" C-m
 	# 5) focus the gateway pane and attach
 	@tmux select-pane -t $(SESSION):1.5
