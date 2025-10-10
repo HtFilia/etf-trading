@@ -26,7 +26,7 @@ help:
 	@echo "  make up|down              					# start/stop ALL services in tmux (venv activated)"
 	@echo "  make prod-up              					# start ALL services with prod flags"
 	@echo "  make sim-pcf|sim-md|sim-fx|sim-pricing|ws  # start single service (venv activated)"
-	@echo "  make clean clean-sockets					# clean everything"
+	@echo "  make clean clean-sockets full-clean		# clean everything"
 	@echo "  make sockets								# status of sockets"
 
 # ====== bootstrap ======
@@ -170,3 +170,11 @@ clean: clean-sockets
 	@find backend -type d -name "__pycache__" -exec rm -rf {} + || true
 	@rm -rf .pytest_cache || true
 	@echo "🧹 Cleaned cache & sockets"
+
+.PHONY: full-clean
+full-clean: clean
+	@rm -rf backend/.venv
+	@rm -rf frontend/node_modules
+	@rm -rf .mypy_cache
+	@rm -rf .ruff_cache
+
