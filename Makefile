@@ -23,7 +23,7 @@ help:
 	@echo "  make shell-venv           # open an interactive shell with venv activated"
 	@echo "  make fmt lint typecheck   # code quality"
 	@echo "  make test|test-unit|test-nr"
-	@echo "  make dev-up|dev-down      # start/stop ALL services in tmux (venv activated)"
+	@echo "  make up|down              # start/stop ALL services in tmux (venv activated)"
 	@echo "  make prod-up              # start ALL services with prod-ish flags"
 	@echo "  make run-pcf|run-md|run-fx|run-pricing|run-ws  # single service (venv activated)"
 	@echo "  make clean clean-sockets sockets"
@@ -96,8 +96,8 @@ run-ws: venv
 	@bash -lc '$(ACT) && PYTHONPATH=. python backend/apps/gateway_ws/main.py'
 
 # ====== tmux orchestration (venv ACTIVATED in each pane) ======
-.PHONY: dev-up
-dev-up: install
+.PHONY: up
+up: install
 	@echo "Starting dev grid (single window) in tmux session '$(SESSION)'..."
 	@-tmux kill-session -t $(SESSION) 2>/dev/null || true
 	# 1) create empty session + window
@@ -126,8 +126,8 @@ dev-up: install
 	@tmux select-pane -t $(SESSION):1.5
 	@tmux attach -t $(SESSION)
 
-.PHONY: dev-down
-dev-down:
+.PHONY: down
+down:
 	@-tmux kill-session -t $(SESSION) 2>/dev/null || true
 	@$(MAKE) clean-sockets
 
