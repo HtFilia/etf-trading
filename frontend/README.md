@@ -1,16 +1,62 @@
-# React + Vite
+# Frontend (React + Vite + Recharts)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A small React app that connects to the backend WebSocket and renders a live ETF table with quick charts. Styling uses Tailwind via the Vite plugin.
 
-Currently, two official plugins are available:
+## What it shows
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Connectivity** badge and last message timestamp.
+- **ETF table** with last, mid, diff (bps vs. band), and breach side.
+- **Chart modal** when selecting a row – local history is built in memory.
 
-## React Compiler
+## Project structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+src/
+  components/
+    EtfTable.jsx       # main table view
+    ChartModal.jsx     # per-symbol chart modal (Recharts)
+    ConnBadge.jsx      # WS status
+    Header.jsx, WsUrlBadge.jsx
+  hooks/
+    useWsFeed.js       # robust WS hook w/ backoff & format handling
+    useRecencySeries.js
+  utils/
+    format.js, sampling.js
+  App.jsx, main.jsx, index.css, App.css
+```
 
-## Expanding the ESLint configuration
+## Dev loop
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1) Install deps
+
+```bash
+npm install
+```
+
+2) Run the dev server
+
+```bash
+npm run dev
+```
+
+Open the printed URL (e.g., <http://localhost:5173>).
+
+> The page tries to connect to `ws://localhost:9080/stream` by default. You can override with a query param:  
+> `http://localhost:5173/?ws=ws://127.0.0.1:9080/stream`
+
+## Expected WebSocket message shape
+
+Each frame is JSON with a `type`, an optional `ts` (ms), and a `payload` object. Known `type` prefixes: `prices.`, `fx.`, `inav.`. The UI only needs a subset (`prices.tick`, `inav.tick`).
+
+## Lint / build
+
+```bash
+npm run lint
+npm run build
+npm run preview
+```
+
+## Troubleshooting
+
+- If the **Conn** badge stays red, confirm the backend gateway is up and reachable and that CORS/WS is not blocked by proxies (use direct localhost in dev).
+- For remote backends, pass `?ws=wss://host/stream` and ensure TLS termination is configured upstream.
