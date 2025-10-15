@@ -16,8 +16,8 @@ PAIRS = ['EURUSD', 'USDJPY', 'EURGBP']
 
 async def init() -> None:
     global _pub
-    _pub = await PubSocket.bind(CFG.md_pub_ipc)
-    log.info('fx_sim publishing on md_pub', extra={'endpoint': CFG.md_pub_ipc})
+    _pub = await PubSocket.bind(CFG.fx_ipc)
+    log.info('fx_sim publishing on md_pub', extra={'endpoint': CFG.fx_ipc})
 
 
 def _step_spot(prev: float) -> float:

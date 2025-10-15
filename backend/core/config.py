@@ -5,27 +5,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-try:
-    from dotenv import load_dotenv
 
-    _ENV_LOADED = load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / '.env')
-except:
-    _ENV_LOADED = False
-
-
-def _ensure_ipc(addr: Optional[str], default_name: str) -> str:
-    if not addr:
-        base = os.environ.get('ZMQ_DIR', '/tmp/etf-trading')
-        return f'ipc://{Path(base) / default_name}'
-    if addr.startswith(('ipc://', 'tcp://')):
-        return addr
-    if addr.startswith('/'):
-        return f'ipc://{addr}'
-    base = os.environ.get('ZMQ_DIR', '/tmp/etf-trading')
-    return f'ipc://{Path(base) / addr}'
-
-
-@dataclass(frozen=True)
+@dataclass
 class AppConfig:
     # General
     env_loaded: bool
@@ -34,10 +15,10 @@ class AppConfig:
 
     # ZMQ & IPC
     zmq_dir: str
-    md_pub_addr: str
-    pcf_reqrep_addr: str
-    pricing_pub_addr: str
-    calc_reqrep_addr: str
+    md_sock: str
+    fx_sock: str
+    pcf_sock: str
+    pricing_sock: str
 
     # WS gateway
     ws_host: str
@@ -58,24 +39,37 @@ class AppConfig:
         return self.tick_interval_ms / 1000.0
 
     @property
-    def md_pub_ipc(self) -> str:
-        return _ensure_ipc(self.md_pub_addr, 'md_pub.sock')
+    def md_ipc(self) -> str:
+        return self._make_ipc(self.md_sock)
+    
+    @property
+    def fx_ipc(self) -> str:
+        return self._make_ipc(self.fx_sock)
 
     @property
-    def pcf_reqrep_ipc(self) -> str:
-        return _ensure_ipc(self.pcf_reqrep_addr, 'pcf_reqrep.sock')
+    def pcf_ipc(self) -> str:
+        return self._make_ipc(self.pcf_sock)
 
     @property
-    def pricing_pub_ipc(self) -> str:
-        return _ensure_ipc(self.pricing_pub_addr, 'pricing_pub.sock')
-
-    @property
-    def calc_reqrep_ipc(self) -> str:
-        return _ensure_ipc(self.calc_reqrep_addr, 'calc_reqrep.sock') if self.calc_reqrep_addr else ''
+    def pricing_ipc(self) -> str:
+        return self._make_ipc(self.pricing_sock)
+    
+    def _make_ipc(self, sock: str) -> str:
+        if sock.startswith(('ipc://', 'tcp://')):
+            return sock
+        if sock.startswith('/'):
+            return f'ipc://{sock}'
+        return f'ipc://{Path(self.zmq_dir) / sock}'
 
 
 @lru_cache(maxsize=1)
 def get_config() -> AppConfig:
+    try:
+        from dotenv import load_dotenv
+        loaded = load_dotenv(override=True)
+    except:
+        loaded = False
+
     def as_bool(s: Optional[str], default: bool) -> bool:
         if s is None:
             return default
@@ -95,15 +89,15 @@ def get_config() -> AppConfig:
 
     return AppConfig(
         # General
-        env_loaded=_ENV_LOADED,
+        env_loaded=loaded,
         dev_mode=as_bool(os.environ.get('DEV_MODE'), True),
         tick_interval_ms=as_float(os.environ.get('TICK_INTERVAL_MS'), 1000.0),
         # ZMQ & IPC
         zmq_dir=os.environ.get('ZMQ_DIR', '/tmp/etf-trading'),
-        md_pub_addr=os.environ.get('MD_PUB_ADDR', ''),
-        pcf_reqrep_addr=os.environ.get('PCF_REQREP_ADDR', ''),
-        pricing_pub_addr=os.environ.get('PRICING_PUB_ADDR', ''),
-        calc_reqrep_addr=os.environ.get('CALC_REQREP_ADDR', ''),
+        md_sock=os.environ.get('MARKET_DATA_SOCK', 'md.sock'),
+        fx_sock=os.environ.get('FX_SOCK', 'fx.sock'),
+        pcf_sock=os.environ.get('PCF_SOCK', 'pcf.sock'),
+        pricing_sock=os.environ.get('PRICING_SOCK', 'pricing.sock'),
         # WS gateway
         ws_host=os.environ.get('WS_HOST', 'localhost'),
         ws_port=as_int(os.environ.get('WS_PORT'), 9080),

@@ -9,8 +9,8 @@ log = get_logger(__name__)
 
 
 async def main():
-    rep = await RepSocket.bind(CFG.pcf_reqrep_ipc)
-    log.info('REP listening %s', CFG.pcf_reqrep_ipc)
+    rep = await RepSocket.bind(CFG.pcf_ipc)
+    log.info('REP listening %s', CFG.pcf_ipc)
     while True:
         req = await rep.recv()
         log.info('server got: %s', req)

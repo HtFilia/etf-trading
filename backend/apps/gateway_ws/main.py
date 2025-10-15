@@ -4,7 +4,7 @@ import uvicorn
 from starlette.applications import Starlette
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from backend.core.config import get_config
-from backend.core.zmq_bus import SubSocket, ReqSocket
+from backend.core.zmq_bus import SubSocket
 from backend.core.utils.services import run_service
 from backend.core.logging import get_logger, integrate_uvicorn
 
@@ -17,10 +17,10 @@ app = Starlette()
 async def stream(ws: WebSocket):
     await ws.accept()
     subs = [
-        await SubSocket.connect(CFG.md_pub_ipc, topics=['prices.', 'fx.']),
-        await SubSocket.connect(CFG.pricing_pub_ipc, topics=['inav.']),
+        await SubSocket.connect(CFG.md_ipc, topics=['prices.']),
+        await SubSocket.connect(CFG.fx_ipc, topics=['fx.']),
+        await SubSocket.connect(CFG.pricing_ipc, topics=['inav.']),
     ]
-    calc = await ReqSocket.connect(CFG.calc_reqrep_ipc) if CFG.calc_reqrep_ipc else None
     log.info('WS client connected')
 
     async def forward(sub: SubSocket):
@@ -30,28 +30,7 @@ async def stream(ws: WebSocket):
         except (WebSocketDisconnect, RuntimeError):
             return
 
-    async def rpc_loop():
-        if not calc:
-            try:
-                while True:
-                    await ws.receive_text()
-            except WebSocketDisconnect:
-                return
-        else:
-            try:
-                while True:
-                    req = await ws.receive_json()
-                    if 'rpc' in req:
-                        resp = await calc.send_and_recv(req)
-                        try:
-                            await ws.send_json({'rpc': req['rpc'], 'resp': resp})
-                        except (WebSocketDisconnect, RuntimeError):
-                            return
-            except WebSocketDisconnect:
-                return
-
     tasks = [asyncio.create_task(forward(s)) for s in subs]
-    tasks.append(asyncio.create_task(rpc_loop()))
     try:
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for t in pending:
@@ -60,8 +39,6 @@ async def stream(ws: WebSocket):
     finally:
         for s in subs:
             await s.close()
-        if calc:
-            await calc.close()
         try:
             await ws.close()
         except:

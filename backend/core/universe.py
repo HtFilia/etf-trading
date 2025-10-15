@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from pathlib import Path
 import json
 from typing import List, Dict
 
-from backend.core.schemas import Exchange, Security
+from backend.core.schemas import Exchange, Security, GBMParams
 
 DATA_PATH = Path(__file__).resolve().parents[1] / 'data' / 'universe.json'
 
@@ -17,71 +18,75 @@ class Universe:
 
 
 def _default_universe() -> Universe:
-    """Hard-coded minimal universe for MVP0 (5 ETFs + a few large caps)."""
-    exchanges = [
-        Exchange(id="XNAS", name="Nasdaq", timezone="America/New_York", open_time="09:30", close_time="16:00"),
-        Exchange(id="XNYS", name="NYSE", timezone="America/New_York", open_time="09:30", close_time="16:00"),
-        Exchange(id="XPAR", name="Euronext Paris", timezone="Europe/Paris", open_time="09:00", close_time="17:30"),
-        Exchange(id="XETR", name="Xetra", timezone="Europe/Berlin", open_time="09:00", close_time="17:30"),
-        Exchange(id="XSHG", name="Shanghai SE", timezone="Asia/Shanghai", open_time="09:30", close_time="15:00"),
-    ]
-    ex_map = {e.id: e for e in exchanges}
+    """Generate a default synthetic universe with 10 equities and 2 ETFs, all on one exchange."""
 
-    securities = [
-        # ETFs (placeholders for dev)
-        Security(
-            id="ETF_SP500",
-            isin=None,
-            ticker="SPYx",
-            name="S&P 500 Tracker (sim)",
-            exchange_id="XNYS",
+    # --- 1️⃣ Single exchange definition ---
+    exchange = Exchange(
+        id="NYSE",
+        name="New York Stock Exchange",
+        timezone="America/New_York",
+        open_time="09:30",
+        close_time="16:00",
+    )
+    exchanges = {"NYSE": exchange}
+
+    # --- 2️⃣ Controlled vocabularies ---
+    sectors = [
+        "Technology",
+        "Financials",
+        "Energy",
+        "Healthcare",
+        "Industrials",
+        "Consumer Discretionary",
+        "Materials",
+        "Utilities",
+    ]
+    regions = ["US", "EU", "ASIA"]
+
+    # --- 3️⃣ Random GBM hyperparameters ---
+    def random_gbm_params(low_mu=0.05, high_mu=0.15, low_sigma=0.15, high_sigma=0.35) -> GBMParams:
+        return GBMParams(
+            mu=random.uniform(low_mu, high_mu),
+            sigma=random.uniform(low_sigma, high_sigma),
+            s0=random.uniform(80, 150),
+            dt_mode="trading",
+        )
+
+    # --- 4️⃣ Generate 10 equities ---
+    securities: List[Security] = []
+    for i in range(10):
+        sec = Security(
+            id=f"EQ{i+1:02d}",
+            ticker=f"EQ{i+1:02d}",
+            name=f"Equity {i+1}",
+            exchange_id="NYSE",
+            currency="USD",
+            type="Equity",
+            sector=random.choice(sectors),
+            region=random.choice(regions),
+            gbm_params=random_gbm_params(),
+        )
+        securities.append(sec)
+
+    # --- 5️⃣ Generate 2 ETFs (lower vol, lower drift) ---
+    for i in range(2):
+        sec = Security(
+            id=f"ETF{i+1:02d}",
+            ticker=f"ETF{i+1:02d}",
+            name=f"ETF {i+1}",
+            exchange_id="NYSE",
             currency="USD",
             type="ETF",
-        ),
-        Security(
-            id="ETF_CSI1000",
-            isin=None,
-            ticker="CSI1k",
-            name="CSI 1000 Tracker (sim)",
-            exchange_id="XSHG",
-            currency="CNY",
-            type="ETF",
-        ),
-        Security(
-            id="ETF_CAC40",
-            isin=None,
-            ticker="CACx",
-            name="CAC 40 Tracker (sim)",
-            exchange_id="XPAR",
-            currency="EUR",
-            type="ETF",
-        ),
-        Security(
-            id="ETF_MSCI_W",
-            isin=None,
-            ticker="MSCIw",
-            name="MSCI World Tracker (sim)",
-            exchange_id="XETR",
-            currency="EUR",
-            type="ETF",
-        ),
-        Security(
-            id="ETF_STOXX600",
-            isin=None,
-            ticker="STOXX",
-            name="EURO STOXX 600 Tracker (sim)",
-            exchange_id="XETR",
-            currency="EUR",
-            type="ETF",
-        ),
-        # A few large caps to have moving constituents
-        Security(id="AAPL", isin="US0378331005", ticker="AAPL", name="Apple Inc", exchange_id="XNAS", currency="USD"),
-        Security(id="MSFT", isin="US5949181045", ticker="MSFT", name="Microsoft", exchange_id="XNAS", currency="USD"),
-        Security(id="AIR", isin="NL0000235190", ticker="AIR", name="Airbus SE", exchange_id="XPAR", currency="EUR"),
-        Security(id="OR", isin="FR0000120321", ticker="OR", name="L'Oréal SA", exchange_id="XPAR", currency="EUR"),
-        Security(id="SIE", isin="DE0007236101", ticker="SIE", name="Siemens AG", exchange_id="XETR", currency="EUR"),
-    ]
-    return Universe(securities=securities, exchanges=ex_map)
+            sector="Financials",
+            region="US",
+            gbm_params=random_gbm_params(
+                low_mu=0.03, high_mu=0.08, low_sigma=0.10, high_sigma=0.20
+            ),
+        )
+        securities.append(sec)
+
+    # --- 6️⃣ Build universe ---
+    return Universe(securities=securities, exchanges=exchanges)
 
 
 def _load_from_json(path: Path) -> Universe:

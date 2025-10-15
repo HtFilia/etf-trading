@@ -3,7 +3,8 @@ SHELL := /bin/bash
 VENV := backend/.venv
 PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
-ACT := source $(VENV)/bin/activate
+PROJECT_ROOT := $(shell pwd)
+ACT := source $(VENV)/bin/activate && export PYTHONPATH=$(PROJECT_ROOT)
 
 # Export keys from .env (values are read at runtime by python-dotenv anyway)
 ifneq ("$(wildcard .env)","")
@@ -65,15 +66,15 @@ typecheck:
 # ====== tests ======
 .PHONY: test
 test:
-	@PYTHONPATH=. $(VENV)/bin/pytest -q
+	@cd $(PROJECT_ROOT) && PYTHONPATH=$(PROJECT_ROOT) $(VENV)/bin/pytest -q
 
 .PHONY: test-unit
 test-unit:
-	@PYTHONPATH=. $(VENV)/bin/pytest -q -m "unit"
+	@cd $(PROJECT_ROOT) && PYTHONPATH=$(PROJECT_ROOT) $(VENV)/bin/pytest -q -m "unit"
 
 .PHONY: test-nr
 test-nr:
-	@PYTHONPATH=. $(VENV)/bin/pytest -q -m "nr"
+	@cd $(PROJECT_ROOT) && PYTHONPATH=$(PROJECT_ROOT) $(VENV)/bin/pytest -q -m "nr"
 
 # ====== single service (foreground) — venv ACTIVATED ======
 .PHONY: sim-pcf
@@ -101,30 +102,24 @@ ws: venv
 up: install
 	@echo "Starting dev grid (single window) in tmux session '$(SESSION)'..."
 	@-tmux kill-session -t $(SESSION) 2>/dev/null || true
-	# 1) create empty session + window
 	@tmux new-session -d -s $(SESSION) -n stack "bash"
-	# (tiny settle to avoid WSL races)
 	@sleep 0.1
-	# 2) make 5 panes: split -> [0|1], then split 0 & 1 vertically, then one more below pane 3
-	@tmux split-window  -h -t $(SESSION):1
-	@tmux split-window  -v -t $(SESSION):1.1
-	@tmux split-window  -v -t $(SESSION):1.2
-	@tmux split-window  -v -t $(SESSION):1.4
-	# 3) arrange tiles and title each pane
-	@tmux select-layout -t $(SESSION):1 tiled
-	@tmux select-pane   -t $(SESSION):1.1 \; select-pane -T "pcf"
-	@tmux select-pane   -t $(SESSION):1.2 \; select-pane -T "md"
-	@tmux select-pane   -t $(SESSION):1.3 \; select-pane -T "fx"
-	@tmux select-pane   -t $(SESSION):1.4 \; select-pane -T "pricing"
-	@tmux select-pane   -t $(SESSION):1.5 \; select-pane -T "gateway_ws"
-	# 4) run commands in each pane (venv ACTIVATED)
-	@tmux send-keys -t $(SESSION):1.1 "bash -lc '$(ACT) && python backend/apps/simulation/pcf.py'" C-m
-	@tmux send-keys -t $(SESSION):1.2 "bash -lc '$(ACT) && python backend/apps/simulation/market_data.py'"   C-m
-	@tmux send-keys -t $(SESSION):1.3 "bash -lc '$(ACT) && python backend/apps/simulation/fx.py'"   C-m
-	@tmux send-keys -t $(SESSION):1.4 "bash -lc '$(ACT) && python backend/apps/simulation/pricing.py'"  C-m
-	@tmux send-keys -t $(SESSION):1.5 "bash -lc '$(ACT) && python backend/apps/gateway_ws/main.py'" C-m
-	# 5) focus the gateway pane and attach
-	@tmux select-pane -t $(SESSION):1.5
+	@tmux split-window  -h -t $(SESSION):stack
+	@tmux split-window  -v -t $(SESSION):stack.1
+	@tmux split-window  -v -t $(SESSION):stack.2
+	@tmux split-window  -v -t $(SESSION):stack.4
+	@tmux select-layout -t $(SESSION):stack tiled
+	@tmux select-pane   -t $(SESSION):stack.1 -T "pcf"
+	@tmux select-pane   -t $(SESSION):stack.2 -T "md"
+	@tmux select-pane   -t $(SESSION):stack.3 -T "fx"
+	@tmux select-pane   -t $(SESSION):stack.4 -T "pricing"
+	@tmux select-pane   -t $(SESSION):stack.5 -T "gateway_ws"
+	@tmux send-keys -t $(SESSION):stack.1 "bash -lc '$(ACT) && python backend/apps/simulation/pcf.py'" C-m
+	@tmux send-keys -t $(SESSION):stack.2 "bash -lc '$(ACT) && python backend/apps/simulation/market_data.py'" C-m
+	@tmux send-keys -t $(SESSION):stack.3 "bash -lc '$(ACT) && python backend/apps/simulation/fx.py'" C-m
+	@tmux send-keys -t $(SESSION):stack.4 "bash -lc '$(ACT) && python backend/apps/simulation/pricing.py'" C-m
+	@tmux send-keys -t $(SESSION):stack.5 "bash -lc '$(ACT) && python backend/apps/gateway_ws/main.py'" C-m
+	@tmux select-pane -t $(SESSION):stack.5
 	@tmux attach -t $(SESSION)
 
 .PHONY: down
@@ -177,4 +172,3 @@ full-clean: clean
 	@rm -rf frontend/node_modules
 	@rm -rf .mypy_cache
 	@rm -rf .ruff_cache
-

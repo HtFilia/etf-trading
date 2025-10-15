@@ -9,7 +9,7 @@ log = get_logger(__name__)
 
 
 async def run():
-    sub = await SubSocket.connect(CFG.md_pub_ipc, topics=['prices.'])
+    sub = await SubSocket.connect(CFG.md_ipc, topics=['prices.'])
     n = 0
     async for msg in sub:
         log.info(msg)

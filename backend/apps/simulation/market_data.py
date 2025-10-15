@@ -21,43 +21,32 @@ _gbm_state: Dict[str, float] = {} # security_id > last mid price
 _gbm_params: Dict[str, Tuple[float, float]] = {} # security_id > (mu, sigma)
 
 def _init_gbm_for_security(sec: Security) -> None:
-    """Initialize GBM parameters and starting price for a given security."""
-    # Randomize parameters a bit to differentiate stocks
-    mu = random.uniform(0.05, 0.15)     # annualized drift ~ 5–15%
-    sigma = random.uniform(0.15, 0.35)  # annualized volatility ~ 15–35%
+    global _gbm_state, _gbm_params
+    mu = random.uniform(0.05, 0.15)
+    sigma = random.uniform(0.15, 0.35)
     S0 = 100.0 + random.uniform(-5, 5)
     _gbm_state[sec.id] = S0
     _gbm_params[sec.id] = (mu, sigma)
 
 async def init() -> None:
-    global _pub
-    _pub = await PubSocket.bind(CFG.md_pub_ipc)
-    log.info('md_sim bound', extra={'event': 'bind', 'endpoint': CFG.md_pub_ipc})
+    global _pub, CFG
+    log.info(CFG.md_ipc)
+    _pub = await PubSocket.bind(CFG.md_ipc)
+    log.info('md_sim bound', extra={'event': 'bind', 'endpoint': CFG.md_ipc})
 
 
 def _simulate_tick(sec: Security, dt: float) -> PriceTick:
-    """Simulate next price tick using Geometric Brownian Motion."""
     if sec.id not in _gbm_state:
         _init_gbm_for_security(sec)
 
     S = _gbm_state[sec.id]
     mu, sigma = _gbm_params[sec.id]
 
-    # Convert dt to fraction of a year
-    dt_years = dt / (252 * 6.5 * 3600)  # assume 252 trading days, 6.5h/day
-
-    # Draw standard normal shock
+    dt_years = dt / (252 * 6.5 * 3600)
     Z = np.random.normal()
-
-    # GBM step
     S_next = S * math.exp((mu - 0.5 * sigma**2) * dt_years + sigma * math.sqrt(dt_years) * Z)
-
-    # Store new price
     _gbm_state[sec.id] = S_next
-
-    # Simulate a small random spread
     spread = random.uniform(0.01, 0.05) * S_next
-
     return PriceTick(
         security_id=sec.id,
         bid=round(S_next - spread / 2, 4),

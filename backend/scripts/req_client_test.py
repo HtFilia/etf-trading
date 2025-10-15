@@ -9,7 +9,7 @@ log = get_logger(__name__)
 
 
 async def main():
-    req = await ReqSocket.connect(CFG.pcf_reqrep_ipc)
+    req = await ReqSocket.connect(CFG.pcf_ipc)
     resp = await req.send_and_recv({'hello': 'world'})
     log.info('client got %s', resp)
 
