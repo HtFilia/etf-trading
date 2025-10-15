@@ -4,9 +4,9 @@ import random
 from dataclasses import dataclass
 from pathlib import Path
 import json
-from typing import List, Dict
-
-from backend.core.schemas import Exchange, Security, GBMParams
+import numpy as np
+from typing import List, Dict, Optional
+from backend.core.schemas import Exchange, Security, GBMParams, CorrelationMatrix
 
 DATA_PATH = Path(__file__).resolve().parents[1] / 'data' / 'universe.json'
 
@@ -15,6 +15,51 @@ DATA_PATH = Path(__file__).resolve().parents[1] / 'data' / 'universe.json'
 class Universe:
     securities: List[Security]
     exchanges: Dict[str, Exchange]
+    correlation: Optional[CorrelationMatrix] = None
+
+
+def _nearest_positive_definite(A: np.ndarray, epsilon: float = 1e-8) -> np.ndarray:
+    """Return the nearest positive-definite matrix to A."""
+    B = (A + A.T) / 2
+    _, s, V = np.linalg.svd(B)
+    H = np.dot(V.T, np.dot(np.diag(s), V))
+    A2 = (B + H) / 2
+    A3 = (A2 + A2.T) / 2
+    # Ensure positive definiteness by shifting eigenvalues if needed
+    eigvals, _ = np.linalg.eigh(A3)
+    min_eig = np.min(eigvals)
+    if min_eig < epsilon:
+        A3 += np.eye(A.shape[0]) * (-min_eig + epsilon)
+    return A3
+
+
+def _generate_correlation_matrix(securities: List[Security]) -> CorrelationMatrix:
+    stocks = [s for s in securities if s.type == "Equity"]
+    ids = [s.id for s in stocks]
+    n = len(stocks)
+    matrix = np.eye(n)
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            si, sj = stocks[i], stocks[j]
+            if si.region == sj.region and si.sector == sj.sector:
+                rho = 0.8
+            elif si.region == sj.region:
+                rho = 0.6
+            elif si.sector == sj.sector:
+                rho = 0.4
+            else:
+                rho = 0.2
+            # small random noise to avoid singularities
+            rho += np.random.normal(0, 0.02)
+            rho = np.clip(rho, 0.05, 0.95)
+            matrix[i, j] = matrix[j, i] = rho
+
+    # ✅ ensure symmetric positive definiteness
+    matrix = _nearest_positive_definite(matrix)
+
+    corr_dict = {ids[i]: {ids[j]: float(matrix[i, j]) for j in range(n)} for i in range(n)}
+    return CorrelationMatrix(matrix=corr_dict)
 
 
 def _default_universe() -> Universe:
@@ -86,14 +131,19 @@ def _default_universe() -> Universe:
         securities.append(sec)
 
     # --- 6️⃣ Build universe ---
-    return Universe(securities=securities, exchanges=exchanges)
+    uni = Universe(securities=securities, exchanges=exchanges)
+    uni.correlation = _generate_correlation_matrix(uni.securities)
+    return uni
 
 
 def _load_from_json(path: Path) -> Universe:
     data = json.loads(path.read_text())
     exchanges = {e['id']: Exchange(**e) for e in data['exchanges']}
     securities = [Security(**s) for s in data['securities']]
-    return Universe(securities=securities, exchanges=exchanges)
+    correlation = None
+    if 'correlation' in data:
+        correlation = CorrelationMatrix(**data['correlation'])
+    return Universe(securities=securities, exchanges=exchanges, correlation=correlation)
 
 
 def _save_to_json(path: Path, uni: Universe) -> None:
@@ -102,6 +152,8 @@ def _save_to_json(path: Path, uni: Universe) -> None:
         'exchanges': [e.model_dump() for e in uni.exchanges.values()],
         'securities': [s.model_dump() for s in uni.securities],
     }
+    if uni.correlation is not None:
+        payload['correlation'] = uni.correlation.model_dump()
     path.write_text(json.dumps(payload, indent=2))
 
 

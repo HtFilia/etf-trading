@@ -75,3 +75,8 @@ class ETFPCF(BaseModel):
     baskets: Dict[str, Basket] = Field(default_factory=dict)
     costs: ETFCosts = Field(default_factory=ETFCosts)
     stamp_duties: Dict[str, Dict[str, float]] = Field(default_factory=dict)
+
+class CorrelationMatrix(BaseModel):
+    matrix: Dict[str, Dict[str, float]]
+    method: Literal["sector_region", "custom"] = "sector_region"
+
