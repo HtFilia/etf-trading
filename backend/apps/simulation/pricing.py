@@ -178,7 +178,7 @@ def compute_fair_value(pcf: ETFPCF) -> Optional[float]:
 # ----------------------------------------------------------------------
 
 async def shutdown() -> None:
-    await shutdown_sockets(_sub, _pub, _pcf)
+    await shutdown_sockets(_sub_md, _sub_fx, _pub, _pcf)
     log.info("pricing shutdown complete")
 
 
